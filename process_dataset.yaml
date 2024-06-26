@@ -1,0 +1,39 @@
+defaults:
+  - conf/env: dmc_pixels
+  - override hydra/launcher: submitit_local
+
+# task settings
+task: stickman_walk
+# misc
+seed: 1
+device: cuda:0
+img_size: 64
+
+# CLIP-related
+viclip_encode: true
+viclip_model: internvideo2
+
+# dataset-related
+dataset_dir: null
+key_to_process: observation
+
+# experiment
+project_name: genrl
+# log settings
+workdir: ???
+
+
+hydra:
+  run:
+    dir: ./exp_local/${now:%Y.%m.%d}/process_data_${now:%H%M%S}
+  sweep:
+    dir: ./exp_sweep/${now:%Y.%m.%d}/${now:%H%M}_process_data
+    subdir: ${hydra.job.num}
+  launcher:
+    timeout_min: 4300
+    cpus_per_task: 10
+    gpus_per_node: 1
+    tasks_per_node: 1
+    mem_gb: 160
+    nodes: 1
+    submitit_folder: ./exp_sweep/${now:%Y.%m.%d}/${now:%H%M}_process_data_${experiment}/.slurm

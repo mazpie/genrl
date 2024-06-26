@@ -1,0 +1,6 @@
+num_train_frames: 5_000_010
+visual_every_frames: 250_000
+train_world_model: True
+train_connector: True
+reset_world_model: True
+reset_connector: True

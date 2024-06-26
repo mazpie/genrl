@@ -1,0 +1,37 @@
+# @package _global_
+img_size: 64
+
+# Dreamer defaults
+rssm: {ensemble: 1, hidden: 1024, deter: 1024, stoch: 32, discrete: 32,  norm: layer, std_act: softplus, min_std: 0.1,  single_obs_posterior: true, } # act: elu,
+discount_head: {layers: 4, units: 512, norm: none, dist: binary} # act: elu
+reward_head: {layers: 4, units: 1024, norm: layer, dist: twohot} # act: elu
+kl: { free: 1.0, forward: False, balance: 0.85, free_avg: False, }
+loss_scales: {kl: 0.6, reward: 1.0, discount: 1.0, proprio: 1.0}
+model_opt: {opt: adam, lr: 1e-4, eps: 1e-8, clip: 1000, wd: 1e-6}
+replay: {capacity: 20e6, ongoing: False, minlen: 48, maxlen: 48, prioritize_ends: False}
+decoder_inputs: stoch
+image_dist: mse
+# Actor Critic
+actor: {layers: 4, units: 1024, norm: layer, dist: normal, min_std: 0.1 } # act: elu 
+critic: {layers: 4, units: 1024, norm: layer, dist: twohot } # act: elu, 
+actor_opt: {opt: adam, lr: 3e-5, eps: 1e-5, clip: 100, wd: 1e-6}
+critic_opt: {opt: adam, lr: 3e-5, eps: 1e-5, clip: 100, wd: 1e-6}
+discount: 0.99
+discount_lambda: 0.95
+slow_target: True
+slow_target_update: 100
+slow_target_fraction: 1
+slow_baseline: True
+reward_ema: True
+
+acting_reward_fn: env_reward
+clip_rewards: identity
+
+batch_size: 48 
+batch_length: 48 
+imag_horizon: 16
+eval_state_mean: False
+
+precision: 16
+train_every_actions: 10
+only_random_actions: False

@@ -1,0 +1,8 @@
+# @package _global_
+obs_type: pixels
+action_repeat: 2 
+encoder: {mlp_keys: '$^', cnn_keys: 'observation', norm: layer, cnn_depth: 48, cnn_kernels: [4, 4, 4, 4], mlp_layers: [400, 400, 400, 400]} # act: elu
+decoder: {mlp_keys: '$^', cnn_keys: 'observation', norm: layer, cnn_depth: 48, cnn_kernels: [5, 5, 6, 6], mlp_layers: [400, 400, 400, 400], } # act: elu
+pred_discount: False
+imag_actor_grad: dynamics
+actor_grad: dynamics

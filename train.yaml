@@ -1,0 +1,86 @@
+defaults:
+  - agent: genrl
+  - conf/defaults: genrl
+  - conf/env: dmc_pixels
+  - override hydra/launcher: submitit_local
+
+# mode
+label: default
+# task settings
+task: stickman_walk
+# train settings
+num_train_frames: 200_010
+num_seed_frames: 400
+# eval
+eval_every_frames: 5_000
+eval_modality: null
+num_eval_episodes: 10
+# snapshot
+snapshot_dir: ../../../models/${obs_type}/${task}/${agent.name}/${seed}
+snapshot_every_frames: 50_000
+save_every_frames: 1000
+# misc
+seed: 1
+device: cuda:0
+use_tb: true
+use_wandb: true
+
+# Clip stuff
+viclip_encode: true
+viclip_model: internvideo2
+clip_add_noise: 0.0
+clip_hd_rendering: false
+
+# experiment
+experiment: train
+project_name: genrl
+
+# log settings
+log_every_frames: 1_000
+visual_every_frames: 100000000 # edit for debug
+log_episodes_every_frames: 100_000
+
+workdir: ???
+
+# training models
+train_connector: false
+train_world_model: false
+
+reset_connector: false
+reset_world_model: false
+reset_imag_behavior: true
+
+# loading options
+replay_from_wandb_project: null
+snapshot_from_wandb_project: null
+
+task_snapshot: null
+seed_snapshot: null
+agent_name_snapshot: null
+
+snapshot_load_dir: null
+replay_load_dir: null
+
+# 
+snapshot_step: null
+
+# data-free
+train_from_data: true
+start_from_video: mix
+mix_random_actions: True
+imag_warmup_steps: 5
+
+hydra:
+  run:
+    dir: ./exp_local/${now:%Y.%m.%d}/${now:%H%M%S}_${agent.name}
+  sweep:
+    dir: ./exp_sweep/${now:%Y.%m.%d}/${now:%H%M}_${agent.name}_${experiment}
+    subdir: ${hydra.job.num}
+  launcher:
+    timeout_min: 4300
+    cpus_per_task: 10
+    gpus_per_node: 1
+    tasks_per_node: 1
+    mem_gb: 160
+    nodes: 1
+    submitit_folder: ./exp_sweep/${now:%Y.%m.%d}/${now:%H%M}_${agent.name}_${experiment}/.slurm

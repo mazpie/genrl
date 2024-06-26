@@ -1,0 +1,5 @@
+num_train_frames: 500_010
+batch_size: 32
+batch_length: 32
+agent.imag_reward_fn: video_text_reward
+eval_modality: task_imag

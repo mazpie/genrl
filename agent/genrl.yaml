@@ -1,0 +1,22 @@
+# @package agent
+_target_: agent.genrl.GenRLAgent
+name: genrl
+cfg: ???
+obs_space: ???
+act_spec: ???
+grad_heads: [decoder]
+reward_norm: {momentum: 1.0, scale: 1.0, eps: 1e-8}
+actor_ent: 0
+additional_report_fns: ['report_text2video']
+
+clip_add_noise: 0.0
+clip_lafite_noise: 0.5
+
+connector: { token_dropout: 0, loss_scale: 1, denoising_ae: True, detached_post: True, temporal_embeds: False, rescale_embeds: True}
+connector_rssm: {ensemble: 1, hidden: 1024, deter: 1024, stoch: 32, discrete: 32,  norm: layer, std_act: softplus, min_std: 0.1, single_obs_posterior: false, learn_initial: True } # act: elu,
+connector_kl: {free: 0.0, forward: True, balance: 0.8, free_avg: False, } # note forward is true by default
+
+imag_reward_fn: null
+imag_reward_norm: {momentum: 1.00, scale: 1.0, eps: 1e-8}
+imag_reward_args: {score_fn: 'max_cosine', sample_for_target: False, align_initial : False, weighted_align : False, align_sequence: True, skip_first_target: True }
+# +imag_reward_args.task_prompt
