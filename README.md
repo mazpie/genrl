@@ -8,6 +8,10 @@
          <a href="https://mazpie.github.io/genrl">Website</a>&nbsp | <a href="https://huggingface.co/mazpie/genrl_models"> Models 🤗</a>&nbsp | <a href="https://huggingface.co/datasets/mazpie/genrl_datasets"> Datasets 🤗</a>&nbsp | <a href="./demo/"> Gradio demo</a>&nbsp | <a href="./notebooks/"> Notebooks</a>&nbsp
 <br>
 
+## 📰 Updates 
+
+* `July 2024`: the GenRL work was awarded the "Outstanding Paper Award" at the [MFM-EAI workshop](https://icml-mfm-eai.github.io/) @ ICML 2024 
+
 ## Get started
 
 ### Creating the environment
