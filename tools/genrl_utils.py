@@ -2,9 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import cv2
 
 from pathlib import Path
 
+VIDEO_SAMPLES_PATH =  Path(__file__).parent.parent / 'assets' / 'video_samples'
 MODELS_ROOT_PATH = Path(__file__).parent.parent / 'models'
 INTERNVIDEO_PATH = Path(__file__).parent.parent / 'third_party' / 'InternVideo'
 
@@ -45,7 +47,7 @@ TASK2PROMPT = {
 
     'stickman_walk' : 'robot walk fast clean',
     'stickman_run' : 'robot run fast clean',
-    'stickman_stand' : 'standing',
+    'stickman_stand' : 'standing up',
     'stickman_urlb_flip' : 'doing flips',
 
     'stickman_flip' : 'doing flips',
@@ -54,7 +56,7 @@ TASK2PROMPT = {
     'stickman_one_foot' : 'stand on one foot',
     'stickman_high_kick' : 'stand up and kick', 
     'stickman_lying_down' : 'lying down horizontally',
-    'stickman_legs_up' : 'lying down with feet up',
+    'stickman_legs_up' : 'lifting legs up while lying down',
     'stickman_sit_knees' : 'praying',
     'stickman_lunge_pose' : 'lunge_pose',
     'stickman_headstand' : 'headstand',
@@ -79,8 +81,8 @@ TASK2PROMPT = {
     'walker_headstand' : 'headstand',
 
     'kitchen_microwave' : 'opening the microwave fully open',
-    'kitchen_light' : 'activate the light',
-    'kitchen_burner' : 'the burner becomes red',
+    'kitchen_light' : 'switch light on',
+    'kitchen_burner' : 'switch on red burner',
     'kitchen_slide' : 'slide cabinet above the knobs',
 
     'kitchen_kettle' : 'pushing up the kettle',
@@ -90,6 +92,65 @@ TASK2PROMPT = {
     'jaco_reach_top_right' : 'robot grasp the red cube',
     'jaco_reach_bottom_right' : 'robot grasp the red cube',
 }
+
+TASK2VIDEO = {
+    'cheetah_run' : str(VIDEO_SAMPLES_PATH / 'dog_running_seen_from_the_side.mp4'),
+    'cheetah_standing' : str(VIDEO_SAMPLES_PATH / 'person_standing_up_with_hands_up_seen_from_the_side.mp4'),
+    'stickman_high_kick' : str(VIDEO_SAMPLES_PATH / 'karate_kick.mp4'),
+    'stickman_walk' : str(VIDEO_SAMPLES_PATH / 'guy_walking.gif'),
+    'quadruped_walk' : str(VIDEO_SAMPLES_PATH / 'spider_draw.gif'),
+    'kitchen_microwave' : str(VIDEO_SAMPLES_PATH / 'open_microwave.gif')
+}
+
+def get_vid_feat(frames, clip):
+    return clip.get_vid_features(frames,)
+
+def _frame_from_video(video):
+    while video.isOpened():
+        success, frame = video.read()
+        if success:
+            yield frame
+        else:
+            break
+
+v_mean = np.array([0.485, 0.456, 0.406]).reshape(1,1,3)
+v_std = np.array([0.229, 0.224, 0.225]).reshape(1,1,3)
+def normalize(data):
+    return (data/255.0-v_mean)/v_std
+
+def denormalize(data):
+    return (((data * v_std) + v_mean) * 255) 
+
+def frames2tensor(vid_list, fnum=8, target_size=(224, 224), device=torch.device('cuda')):
+    vid_list = [*vid_list[0]]
+    assert(len(vid_list) >= fnum)
+    vid_list = [cv2.resize(x, target_size) for x in vid_list]
+    vid_tube = [np.expand_dims(normalize(x), axis=(0, 1)) for x in vid_list]
+    vid_tube = np.concatenate(vid_tube, axis=1)
+    vid_tube = np.transpose(vid_tube, (0, 1, 4, 2, 3))
+    vid_tube = torch.from_numpy(vid_tube).to(device, non_blocking=True).float()
+    return vid_tube
+
+def get_video_feat(frames, clip, device=torch.device('cuda'), flip=False):
+    # Image
+    if frames.shape[1] == 1:
+        frames = frames.transpose(1,0,2,3,4).repeat(8, axis=0).transpose(1,0,2,3,4)
+
+    # Short video
+    if frames.shape[1] == 4:
+        frames = frames.transpose(1,0,2,3,4).repeat(2, axis=0).transpose(1,0,2,3,4)
+
+    k = max(frames.shape[1] // 128, 1)
+    frames = frames[:, ::k]
+    
+    # Horizontally flip
+    if flip:
+        frames = np.flip(frames, axis=-2)
+
+    chosen_frames = frames[:, :8]
+    chosen_frames = frames2tensor(chosen_frames, device=device)
+    vid_feat = get_vid_feat(chosen_frames, clip,)
+    return vid_feat, chosen_frames
 
 class ViCLIPGlobalInstance:
     def __init__(self, model='internvideo2'):
@@ -307,6 +368,58 @@ def video_text_reward(agent, seq, score_fn='cosine',
         neg_kl = compute_reward(agent, agent_seq, target_seq, score_fn=score_fn,)
     
     return neg_kl.unsqueeze(-1)
+
+def video_video_reward(agent, seq, **kwargs):
+    wm = world_model = agent.wm
+    connector = agent.wm.connector
+    n_frames = connector.n_frames
+
+    multistep = kwargs['multistep']
+    align_initial = kwargs['align_initial']
+    conditional_coeff = kwargs['conditional_coeff']
+    sample_for_target = kwargs['sample_for_target']
+    skip_first_target = kwargs['skip_first_target']
+
+    T, B = seq['deter'].shape[:2]
+    if multistep:
+        imagined_steps = n_frames
+    else:
+        if align_initial:
+            assert conditional_coeff == 0 and not multistep
+            imagined_steps = T
+        else:
+            imagined_steps = T
+
+    if not hasattr(agent, 'unconditional_target'):
+        video_file_path = TASK2VIDEO[agent.cfg.task]
+        video = cv2.VideoCapture(video_file_path)
+        frames = np.expand_dims(np.stack([ cv2.cvtColor(x, cv2.COLOR_BGR2RGB) for x in _frame_from_video(video)], axis=0), axis=0)
+
+        if hasattr(world_model, 'viclip_model'):
+            clip = world_model.viclip_model
+        else:
+            # Get ViCLIP
+            viclip_global_instance = globals()['viclip_global_instance']
+            if not viclip_global_instance._instantiated:
+                viclip_global_instance.instantiate()
+            clip = viclip_global_instance.viclip
+            
+        with torch.no_grad():
+            video_embed, _ = get_video_feat(frames, clip, flip=False)
+                    # Unconditional gen
+            if skip_first_target:
+                video_embed = video_embed.reshape(1, 1, -1).repeat(B, imagined_steps + 1, 1)
+                unconditional_stats = wm.connector.video_imagine(video_embed, dreamer_init=None, sample=sample_for_target, reset_every_n_frames=False, denoise=True) 
+                unconditional_stats = { k: v[:,1:].permute([1,0] + list(range(2, len(v.shape)))) for k,v in unconditional_stats.items() }
+            else:
+                video_embed = video_embed.reshape(1, 1, -1).repeat(B, imagined_steps, 1)
+                unconditional_stats = wm.connector.video_imagine(video_embed, dreamer_init=None, sample=sample_for_target, reset_every_n_frames=False, denoise=True) 
+                unconditional_stats = { k: v.permute([1,0] + list(range(2, len(v.shape)))) for k,v in unconditional_stats.items() }
+        agent.unconditional_target = unconditional_stats
+        
+    assert agent.unconditional_target is not None and (conditional_coeff == 0)
+    return video_text_reward(agent, seq, **kwargs)
+
 
 global viclip_global_instance
 viclip_global_instance = ViCLIPGlobalInstance()

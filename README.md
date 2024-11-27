@@ -1,4 +1,4 @@
-# GenRL: Multimodal foundation world models for generalist embodied agents
+# GenRL: Multimodal-foundation world models for generalization in embodied agents
 
 <p align="center">
     <img src='assets/GenRL_cover.gif' width=90%>
@@ -8,8 +8,21 @@
          <a href="https://mazpie.github.io/genrl">Website</a>&nbsp | <a href="https://huggingface.co/mazpie/genrl_models"> Models 🤗</a>&nbsp | <a href="https://huggingface.co/datasets/mazpie/genrl_datasets"> Datasets 🤗</a>&nbsp | <a href="./demo/"> Gradio demo</a>&nbsp | <a href="./notebooks/"> Notebooks</a>&nbsp
 <br>
 
+If you found our code useful, please refer to our work using the following citation:
+
+```
+@inproceedings{Mazzaglia2024GenRL,
+    title={Gen{RL}: Multimodal-foundation world models for generalization in embodied agents},
+    author={Pietro Mazzaglia and Tim Verbelen and Bart Dhoedt and Aaron Courville and Sai Rajeswar},
+    booktitle={The Thirty-eighth Annual Conference on Neural Information Processing Systems},
+    year={2024},
+    url={https://openreview.net/forum?id=za9Jx8yqUA}
+}
+```
+
 ## 📰 Updates 
 
+* `September 2024`: GenRL got accepted to NeurIPS 2024 
 * `July 2024`: the GenRL work was awarded the "Outstanding Paper Award" at the [MFM-EAI workshop](https://icml-mfm-eai.github.io/) @ ICML 2024 
 
 ## Get started
@@ -104,11 +117,11 @@ download_model('models', 'genrl_stickman_500k_2.pt')
 
 Pre-trained models can be used by setting `snapshot_load_dir=...` when running `train.py`.
 
-Note: the pre-trained models are not trained to solve any tasks. They only contain a pre-trained multimodal foundation world model (world model + connector and aligner).
+Note: the pre-trained models are not trained to solve any tasks. They only contain a pre-trained multimodal-foundation world model (world model + connector and aligner).
 
-### Training multimodal foundation world models
+### Training multimodal-foundation world models
 
-In order to train a multimodal foundation world model from data, you should run something like:
+In order to train a multimodal-foundation world model from data, you should run something like:
 
 ```
 # Note: frames = update steps
@@ -121,9 +134,18 @@ python3 train.py task=stickman_walk replay_load_dir=data/stickman_example num_tr
 
 After pre-training a model, you can train the behavior for a task using:
 
+
+#### From language prompts
 ```
 python3 train.py task=stickman_walk snapshot_load_dir=models/genrl_stickman_500k_2.pt num_train_frames=50_010 batch_size=32 batch_length=32 agent.imag_reward_fn=video_text_reward eval_modality=task_imag 
 ```
+
+#### From video prompts
+```
+python3 train.py task=stickman_walk snapshot_load_dir=models/genrl_stickman_500k_2.pt num_train_frames=50_010 batch_size=32 batch_length=32 agent.imag_reward_fn=video_video_reward eval_modality=task_imag 
+```
+
+The evaluation of the agent happens at regular interval during behavior learning.
 
 Data-free RL can be performed by additionaly passing the option:
 

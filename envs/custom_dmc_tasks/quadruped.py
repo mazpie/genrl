@@ -17,16 +17,15 @@
 
 import collections
 
-from dm_control.suite import quadruped
 from dm_control import mujoco
 from dm_control.mujoco.wrapper import mjbindings
 from dm_control.rl import control
 from dm_control.suite import base
+from dm_control.suite import quadruped
 from dm_control.suite import common
 from dm_control.utils import containers
 from dm_control.utils import rewards
 from dm_control.utils import xml_tools
-from dm_control.utils import io as resources
 from lxml import etree
 import numpy as np
 from scipy import ndimage
@@ -57,72 +56,35 @@ _TERRAIN_BUMP_SCALE = 2  # Spatial scale of terrain bumps (in meters).
 _TOES = ['toe_front_left', 'toe_back_left', 'toe_back_right', 'toe_front_right']
 _WALLS = ['wall_px', 'wall_py', 'wall_nx', 'wall_ny']
 
-def make(task,
-         task_kwargs=None,
-         environment_kwargs=None,
-         visualize_reward=False):
-    task_kwargs = task_kwargs or {}
-    if environment_kwargs is not None:
-        task_kwargs = task_kwargs.copy()
-        task_kwargs['environment_kwargs'] = environment_kwargs
-    env = SUITE[task](**task_kwargs)
-    env.task.visualize_reward = visualize_reward
-    return env
+quadruped.SUITE.allow_overriding_keys = True
 
-def get_model_and_assets():
-    """Returns a tuple containing the model XML string and a dict of assets."""
-    root_dir = os.path.dirname(os.path.dirname(__file__))
-    xml = resources.GetResource(
-        os.path.join(root_dir, 'custom_dmc_tasks', 'quadruped.xml'))
-    return xml, common.ASSETS
+# def make(task,
+#          task_kwargs=None,
+#          environment_kwargs=None,
+#          visualize_reward=False):
+#     task_kwargs = task_kwargs or {}
+#     if environment_kwargs is not None:
+#         task_kwargs = task_kwargs.copy()
+#         task_kwargs['environment_kwargs'] = environment_kwargs
+#     env = SUITE[task](**task_kwargs)
+#     env.task.visualize_reward = visualize_reward
+#     return env
 
-
-def make_model(floor_size=None, terrain=False, rangefinders=False,
-               walls_and_ball=False):
-  """Returns the model XML string."""
-  root_dir = os.path.dirname(os.path.dirname(__file__))
-  xml_string = common.read_model(os.path.join(root_dir, 'custom_dmc_tasks', 'quadruped.xml'))
-  parser = etree.XMLParser(remove_blank_text=True)
-  mjcf = etree.XML(xml_string, parser)
-
-  # Set floor size.
-  if floor_size is not None:
-    floor_geom = mjcf.find('.//geom[@name=\'floor\']')
-    floor_geom.attrib['size'] = f'{floor_size} {floor_size} .5'
-
-  # Remove walls, ball and target.
-  if not walls_and_ball:
-    for wall in _WALLS:
-      wall_geom = xml_tools.find_element(mjcf, 'geom', wall)
-      wall_geom.getparent().remove(wall_geom)
-
-    # Remove ball.
-    ball_body = xml_tools.find_element(mjcf, 'body', 'ball')
-    ball_body.getparent().remove(ball_body)
-
-    # Remove target.
-    target_site = xml_tools.find_element(mjcf, 'site', 'target')
-    target_site.getparent().remove(target_site)
-
-  # Remove terrain.
-  if not terrain:
-    terrain_geom = xml_tools.find_element(mjcf, 'geom', 'terrain')
-    terrain_geom.getparent().remove(terrain_geom)
-
-  # Remove rangefinders if they're not used, as range computations can be
-  # expensive, especially in a scene with heightfields.
-  if not rangefinders:
-    rangefinder_sensors = mjcf.findall('.//rangefinder')
-    for rf in rangefinder_sensors:
-      rf.getparent().remove(rf)
-
-  return etree.tostring(mjcf, pretty_print=True)
-
+@quadruped.SUITE.add('custom')
+def walk(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
+  """Returns the Walk task."""
+  xml_string = quadruped.make_model(floor_size=1000)
+  physics = Physics.from_xml_string(xml_string, common.ASSETS)
+  task = Move(desired_speed=_WALK_SPEED, random=random)
+  environment_kwargs = environment_kwargs or {}
+  return control.Environment(physics, task, time_limit=time_limit,
+                             control_timestep=_CONTROL_TIMESTEP,
+                             **environment_kwargs)
 
 @quadruped.SUITE.add('custom')
 def lie_down(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
   """Returns the Walk task."""
-  xml_string = make_model(floor_size=_DEFAULT_TIME_LIMIT * _WALK_SPEED)
+  xml_string = quadruped.make_model(floor_size=1000)
   physics = Physics.from_xml_string(xml_string, common.ASSETS)
   task = Stand(goal='lie_down', random=random)
   environment_kwargs = environment_kwargs or {}
@@ -134,7 +96,7 @@ def lie_down(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=Non
 @quadruped.SUITE.add('custom')
 def two_legs(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
   """Returns the Walk task."""
-  xml_string = make_model(floor_size=_DEFAULT_TIME_LIMIT * _WALK_SPEED)
+  xml_string = quadruped.make_model(floor_size=1000)
   physics = Physics.from_xml_string(xml_string, common.ASSETS)
   task = Stand(goal='two_legs', random=random)
   environment_kwargs = environment_kwargs or {}
@@ -146,7 +108,7 @@ def two_legs(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=Non
 @quadruped.SUITE.add('custom')
 def stand(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
   """Returns the Walk task."""
-  xml_string = make_model(floor_size=_DEFAULT_TIME_LIMIT * _WALK_SPEED)
+  xml_string = quadruped.make_model(floor_size=1000)
   physics = Physics.from_xml_string(xml_string, common.ASSETS)
   task = Stand(goal='stand', random=random)
   environment_kwargs = environment_kwargs or {}
@@ -157,7 +119,7 @@ def stand(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
 @quadruped.SUITE.add('custom')
 def jump(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
   """Returns the Walk task."""
-  xml_string = make_model(floor_size=_DEFAULT_TIME_LIMIT * _WALK_SPEED)
+  xml_string = quadruped.make_model(floor_size=1000)
   physics = Physics.from_xml_string(xml_string, common.ASSETS)
   task = Jump(desired_height=_JUMP_HEIGHT, random=random)
   environment_kwargs = environment_kwargs or {}
@@ -168,7 +130,7 @@ def jump(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
 @quadruped.SUITE.add('custom')
 def roll(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
   """Returns the Walk task."""
-  xml_string = make_model(floor_size=_DEFAULT_TIME_LIMIT * _WALK_SPEED)
+  xml_string = quadruped.make_model(floor_size=1000)
   physics = Physics.from_xml_string(xml_string, common.ASSETS)
   task = Roll(desired_speed=_WALK_SPEED, random=random)
   environment_kwargs = environment_kwargs or {}
@@ -179,13 +141,38 @@ def roll(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
 @quadruped.SUITE.add('custom')
 def roll_fast(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
   """Returns the Walk task."""
-  xml_string = make_model(floor_size=_DEFAULT_TIME_LIMIT * _WALK_SPEED)
+  xml_string = quadruped.make_model(floor_size=1000)
   physics = Physics.from_xml_string(xml_string, common.ASSETS)
   task = Roll(desired_speed=_RUN_SPEED, random=random)
   environment_kwargs = environment_kwargs or {}
   return control.Environment(physics, task, time_limit=time_limit,
                              control_timestep=_CONTROL_TIMESTEP,
                              **environment_kwargs)
+
+@quadruped.SUITE.add('custom')
+def escape(time_limit=_DEFAULT_TIME_LIMIT, random=None,
+           environment_kwargs=None):
+  """Returns the Escape task."""
+  xml_string = quadruped.make_model(floor_size=1000, terrain=True, rangefinders=True)
+  physics = Physics.from_xml_string(xml_string, common.ASSETS)
+  task = Escape(random=random)
+  environment_kwargs = environment_kwargs or {}
+  return control.Environment(physics, task, time_limit=time_limit,
+                             control_timestep=_CONTROL_TIMESTEP,
+                             **environment_kwargs)
+
+
+@quadruped.SUITE.add('custom')
+def fetch(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
+  """Returns the Fetch task."""
+  xml_string = quadruped.make_model(walls_and_ball=True)
+  physics = Physics.from_xml_string(xml_string, common.ASSETS)
+  task = Fetch(random=random)
+  environment_kwargs = environment_kwargs or {}
+  return control.Environment(physics, task, time_limit=time_limit,
+                             control_timestep=_CONTROL_TIMESTEP,
+                             **environment_kwargs)
+
 
 class Physics(mujoco.Physics):
   """Physics simulation with additional features for the Quadruped domain."""

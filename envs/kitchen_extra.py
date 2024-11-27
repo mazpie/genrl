@@ -27,7 +27,16 @@ OBS_ELEMENT_GOALS = {
     "microwave": np.array([-0.75]),
     "kettle": np.array([-0.23, 0.75, 1.62, 0.99, 0.0, 0.0, -0.06]),
 }
-BONUS_THRESH = 0.3
+
+BONUS_THRESH = {
+    "bottom burner": 0.5,
+    "top burner": 0.5,
+    "light switch": 0.5,
+    "slide cabinet": 0.2,
+    "microwave": 0.25,
+    "hinge cabinet": 0.3, # default
+    "kettle": 0.3, # default
+}
 
 logging.basicConfig(
     level="INFO",
@@ -192,7 +201,7 @@ class KitchenBase(KitchenTaskRelaxV1):
                         within_sphere_right = np.linalg.norm(obj_pos - right_pad) < 0.03
                         if within_sphere_right and within_sphere_left:
                             is_grasped = True
-            complete = distance < BONUS_THRESH #  and is_grasped
+            complete = distance < BONUS_THRESH[element] #  and is_grasped
             if complete:
                 completions.append(element)
         if self.REMOVE_TASKS_WHEN_COMPLETE:
@@ -214,7 +223,7 @@ class KitchenBase(KitchenTaskRelaxV1):
             for wrong_task in list(set(self.ALL_TASKS) - set(self.TASK_ELEMENTS)):
                 element_idx = OBS_ELEMENT_INDICES[wrong_task]
                 distance = np.linalg.norm(obs[..., element_idx] - all_goal[element_idx])
-                complete = distance < BONUS_THRESH
+                complete = distance < BONUS_THRESH[wrong_task]
                 if complete:
                     done = True
                     break

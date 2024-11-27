@@ -22,13 +22,13 @@ t2v_examples = [
 def do_nothing():
     return
 
-def videocrafter_demo(result_dir='./tmp/'):
+def demo(result_dir='./tmp/'):
     text2video = Text2Video(result_dir)
     # video2video = Video2Video(result_dir)
 
     # tex
-    with gr.Blocks(analytics_enabled=False) as videocrafter_iface:
-        gr.Markdown("<div align='center'> <h2> GenRL: Multimodal foundation world models for generalist embodied agents </span> </h2> \
+    with gr.Blocks(analytics_enabled=False) as demo_interface:
+        gr.Markdown("<div align='center'> <h2> GenRL: Multimodal-foundation world models for generalization embodied agents </span> </h2> \
                      <a style='font-size:18px;' href='https://github.com/mazpie/genrl'> [Github] \
                     &nbsp; &nbsp; \
                      <a style='font-size:18px;' href='https://huggingface.co/mazpie/genrl_models'> [Models] </div>")
@@ -68,11 +68,10 @@ def videocrafter_demo(result_dir='./tmp/'):
                 outputs=[output_video_1],
             )
 
-    return videocrafter_iface
+    return demo_interface
 
 if __name__ == "__main__":
     result_dir = os.path.join('./', 'results')
-    videocrafter_iface = videocrafter_demo(result_dir)
-    videocrafter_iface.queue() # concurrency_count=1, max_size=10
-    videocrafter_iface.launch()
-    # videocrafter_iface.launch(server_name='0.0.0.0', server_port=80)
+    video_demo = demo(result_dir)
+    video_demo.queue() 
+    video_demo.launch()
