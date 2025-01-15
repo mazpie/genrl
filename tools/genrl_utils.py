@@ -371,24 +371,12 @@ def video_text_reward(agent, seq, score_fn='cosine',
 
 def video_video_reward(agent, seq, **kwargs):
     wm = world_model = agent.wm
-    connector = agent.wm.connector
-    n_frames = connector.n_frames
 
-    multistep = kwargs['multistep']
-    align_initial = kwargs['align_initial']
-    conditional_coeff = kwargs['conditional_coeff']
     sample_for_target = kwargs['sample_for_target']
     skip_first_target = kwargs['skip_first_target']
 
     T, B = seq['deter'].shape[:2]
-    if multistep:
-        imagined_steps = n_frames
-    else:
-        if align_initial:
-            assert conditional_coeff == 0 and not multistep
-            imagined_steps = T
-        else:
-            imagined_steps = T
+    imagined_steps = T
 
     if not hasattr(agent, 'unconditional_target'):
         video_file_path = TASK2VIDEO[agent.cfg.task]
@@ -417,7 +405,7 @@ def video_video_reward(agent, seq, **kwargs):
                 unconditional_stats = { k: v.permute([1,0] + list(range(2, len(v.shape)))) for k,v in unconditional_stats.items() }
         agent.unconditional_target = unconditional_stats
         
-    assert agent.unconditional_target is not None and (conditional_coeff == 0)
+    assert agent.unconditional_target is not None
     return video_text_reward(agent, seq, **kwargs)
 
 
